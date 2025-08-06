@@ -1,0 +1,188 @@
+body, #root {
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
+  font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
+  width: 100vw;
+  height: 100vh;
+  box-sizing: border-box;
+}
+
+.caro-app {
+  min-height: 100vh;
+  min-width: 100vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center; /* căn giữa dọc */
+  box-sizing: border-box;
+  padding: 0;
+}
+
+.caro-title {
+  color: #2196f3;
+  font-size: 2.8rem;
+  font-weight: bold;
+  margin-bottom: 28px;
+  letter-spacing: 2px;
+  text-shadow: 1px 2px 12px #b3e5fc;
+}
+
+.caro-board-container {
+  background: #fff;
+  border-radius: 28px;
+  box-shadow: 0 8px 32px #90caf9bb;
+  padding: 40px 28px 28px 28px;
+  min-width: 340px;
+  max-width: 95vw;
+  margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.caro-status {
+  font-size: 1.4rem;
+  color: #1976d2;
+  margin-bottom: 24px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.caro-board {
+  display: grid;
+  grid-template-columns: repeat(3, 80px);
+  grid-gap: 14px;
+  justify-content: center;
+  margin-bottom: 28px;
+}
+
+.caro-square {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #90caf9 60%, #e3f2fd 100%);
+  border: none;
+  border-radius: 18px;
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #1565c0;
+  box-shadow: 0 2px 12px #b3e5fc88;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.13s, box-shadow 0.2s;
+  outline: none;
+  margin: 0;
+  padding: 0;
+}
+.caro-square:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #64b5f6;
+}
+.caro-square:hover {
+  background: linear-gradient(135deg, #64b5f6 60%, #bbdefb 100%);
+  transform: scale(1.09);
+  box-shadow: 0 4px 18px #90caf9cc;
+}
+
+.caro-restart-btn {
+  margin-top: 10px;
+  padding: 12px 38px;
+  font-size: 1.15rem;
+  background: linear-gradient(90deg, #1976d2 60%, #64b5f6 100%);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 12px #90caf9aa;
+  transition: background 0.2s, transform 0.13s, box-shadow 0.2s;
+  letter-spacing: 1px;
+}
+.caro-restart-btn:hover {
+  background: linear-gradient(90deg, #1565c0 60%, #42a5f5 100%);
+  transform: scale(1.06);
+  box-shadow: 0 4px 18px #90caf9cc;
+}
+
+.caro-guide {
+  margin-top: 22px;
+  color: #1976d2;
+  font-size: 1.13rem;
+  font-weight: 500;
+  border-top: 1px solid #90caf9;
+  padding-top: 14px;
+  letter-spacing: 1px;
+  width: 100%;
+  text-align: center;
+}
+
+
+/* Responsive cho màn hình nhỏ (điện thoại) */
+@media (max-width: 600px) {
+  .caro-title {
+    font-size: 2rem;
+    margin-bottom: 18px;
+  }
+  .caro-board-container {
+    min-width: unset;
+    width: 98vw;
+    padding: 18px 2vw;
+    border-radius: 16px;
+  }
+  .caro-board {
+    grid-template-columns: repeat(3, 60px);
+    grid-gap: 8px;
+    margin-bottom: 18px;
+  }
+  .caro-square {
+    width: 60px;
+    height: 60px;
+    font-size: 1.6rem;
+    border-radius: 10px;
+  }
+  .caro-restart-btn {
+    padding: 9px 18px;
+    font-size: 1rem;
+    border-radius: 7px;
+  }
+  .caro-guide {
+    font-size: 1rem;
+    padding-top: 8px;
+  }
+}
+
+/* Responsive cho Nest Hub và tablet nhỏ (600px–1024px) */
+@media (max-width: 1024px) and (min-width: 601px) {
+  .caro-title {
+    font-size: 2.5rem;
+    margin-bottom: 20px;
+  }
+  .caro-board-container {
+    width: 90vw;
+    padding: 20px 4vw;
+    border-radius: 20px;
+  }
+  .caro-board {
+    grid-template-columns: repeat(3, 80px);
+    grid-gap: 10px;
+    margin-bottom: 20px;
+  }
+  .caro-square {
+    width: 80px;
+    height: 80px;
+    font-size: 2rem;
+    border-radius: 12px;
+  }
+  .caro-restart-btn {
+    padding: 12px 24px;
+    font-size: 1.1rem;
+    border-radius: 8px;
+  }
+  .caro-guide {
+    font-size: 1.1rem;
+    padding-top: 10px;
+  }
+}
