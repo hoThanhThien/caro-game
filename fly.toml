@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for caro-game on 2025-08-06T21:26:41Z
+# fly.toml app configuration file generated for caro-game-v9mgca on 2025-08-06T22:47:59Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'caro-game'
+app = 'caro-game-v9mgca'
 primary_region = 'sin'
 
 [build]
