@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-
 import './App.css';
 
 function Square({ value, onClick }) {
@@ -32,10 +31,7 @@ function Board() {
         const response = await fetch("http://localhost:8000/auto-move", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            squares: squares,
-            player: 'O',
-          }),
+          body: JSON.stringify({ squares, player: 'O' }),
         });
         const data = await response.json();
         if (data.index !== -1) {
@@ -55,7 +51,6 @@ function Board() {
 
   function handleClick(index) {
     if (squares[index] || winner || isAITurn) return;
-
     const newSquares = [...squares];
     newSquares[index] = 'X';
     setSquares(newSquares);
@@ -117,7 +112,9 @@ function OnlineCaro() {
   const [squares, setSquares] = useState(Array(9).fill(null));
   const [isX, setIsX] = useState(true);
   const [myTurn, setMyTurn] = useState(false);
-  const [winner, setWinner] = useState(null);
+
+  const winner = calculateWinner(squares);
+  const isDraw = !winner && squares.every(s => s !== null);
 
   async function createRoom() {
     const res = await fetch('http://localhost:8000/create-room');
@@ -127,32 +124,36 @@ function OnlineCaro() {
   }
 
   function joinRoom(id, isCreator = false) {
-    const socket = new window.WebSocket(`ws://localhost:8000/ws/${id}`);
+    const playerX = isCreator;
+    const socket = new WebSocket(`ws://localhost:8000/ws/${id}`);
+
     socket.onopen = () => {
       setMyRoom(id);
       setWs(socket);
-      setIsX(isCreator);
-      setMyTurn(isCreator);
+      setIsX(playerX);
       setSquares(Array(9).fill(null));
-      setWinner(null);
+      // Nếu là creator, phát luôn lệnh reset để chọn firstTurn
+      if (playerX) {
+        const firstTurn = Math.random() < 0.5;
+        socket.send(JSON.stringify({ reset: true, firstTurn }));
+      }
     };
 
     socket.onmessage = (event) => {
       let data;
-      try {
-        data = JSON.parse(event.data);
-      } catch {
-        return;
-      }
+      try { data = JSON.parse(event.data); }
+      catch { return; }
 
-      if (data && data.reset) {
+      if (data.reset) {
         setSquares(Array(9).fill(null));
-        setWinner(null);
-        setMyTurn(isX === data.firstTurn);
-      } else if (data && Array.isArray(data.squares) && typeof data.turn === 'string') {
+        setMyTurn(playerX === data.firstTurn);
+      }
+      else if (Array.isArray(data.squares) && typeof data.turn === 'string') {
         setSquares(data.squares);
-        setMyTurn((isX && data.turn === 'X') || (!isX && data.turn === 'O'));
-        setWinner(calculateWinner(data.squares));
+        setMyTurn(
+          (playerX && data.turn === 'X') ||
+          (!playerX && data.turn === 'O')
+        );
       }
     };
 
@@ -161,7 +162,6 @@ function OnlineCaro() {
       setMyRoom('');
       setWs(null);
       setSquares(Array(9).fill(null));
-      setWinner(null);
     };
   }
 
@@ -173,14 +173,13 @@ function OnlineCaro() {
     setMyTurn(false);
     const nextTurn = isX ? 'O' : 'X';
     ws.send(JSON.stringify({ squares: newSquares, turn: nextTurn }));
-    setWinner(calculateWinner(newSquares));
   }
 
   function handleRestart() {
     if (ws) {
-      ws.send(JSON.stringify({ reset: true }));
+      const firstTurn = Math.random() < 0.5;
+      ws.send(JSON.stringify({ reset: true, firstTurn }));
       setSquares(Array(9).fill(null));
-      setWinner(null);
     }
   }
 
@@ -188,10 +187,7 @@ function OnlineCaro() {
     if (ws) ws.close();
     setMyRoom('');
     setSquares(Array(9).fill(null));
-    setWinner(null);
   }
-
-  const isDraw = winner === null && squares.every(s => s !== null);
 
   return (
     <div className="caro-board-container">
@@ -199,25 +195,48 @@ function OnlineCaro() {
         <div style={{ marginBottom: 24 }}>
           <button className="caro-restart-btn" onClick={createRoom}>Tạo phòng mới</button>
           <div style={{ marginTop: 12 }}>
-            <input placeholder="Nhập Room ID" value={roomId} onChange={e => setRoomId(e.target.value)} />
-            <button className="caro-restart-btn" style={{ marginLeft: 8 }} onClick={() => joinRoom(roomId, false)}>Vào phòng</button>
+            <input
+              placeholder="Nhập Room ID"
+              value={roomId}
+              onChange={e => setRoomId(e.target.value)}
+            />
+            <button
+              className="caro-restart-btn"
+              style={{ marginLeft: 8 }}
+              onClick={() => joinRoom(roomId, false)}
+            >
+              Vào phòng
+            </button>
           </div>
         </div>
       ) : (
         <>
-          <div style={{ marginBottom: 10 }}>Phòng: <b>{myRoom}</b></div>
-          <div style={{ marginBottom: 10 }}>Bạn là: <b style={{ color: isX ? '#e53935' : '#222' }}>{isX ? '❌ X' : '⭕ O'}</b></div>
-          <div style={{ marginBottom: 10 }}>Lượt: <b>{myTurn ? 'Bạn' : 'Đối thủ'}</b></div>
+          <div style={{ marginBottom: 10 }}>
+            Phòng: <b>{myRoom}</b>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            Bạn là:{' '}
+            <b style={{ color: isX ? '#e53935' : '#222' }}>
+              {isX ? '❌ X' : '⭕ O'}
+            </b>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            Lượt: <b>{myTurn ? 'Bạn' : 'Đối thủ'}</b>
+          </div>
           <h2 className="caro-status">
             {isDraw ? (
               <>🤝 Hòa rồi!</>
             ) : winner ? (
               <>
-                🎉 Người thắng:{" "}
+                🎉 Người thắng:{' '}
                 {winner === 'X' ? (
-                  <span style={{ color: '#e53935', fontWeight: 'bold' }}>❌ X</span>
+                  <span style={{ color: '#e53935', fontWeight: 'bold' }}>
+                    ❌ X
+                  </span>
                 ) : (
-                  <span style={{ color: '#222', fontWeight: 'bold' }}>⭕ O</span>
+                  <span style={{ color: '#222', fontWeight: 'bold' }}>
+                    ⭕ O
+                  </span>
                 )}
                 !
               </>
@@ -225,7 +244,6 @@ function OnlineCaro() {
               <>Đang chơi...</>
             )}
           </h2>
-
           <div className="caro-board">
             {squares.map((v, i) => (
               <button
@@ -235,11 +253,21 @@ function OnlineCaro() {
                   color: v === 'X' ? '#e53935' : v === 'O' ? '#222' : undefined
                 }}
                 onClick={() => handleClick(i)}
-              >{v}</button>
+              >
+                {v}
+              </button>
             ))}
           </div>
-          <button className="caro-restart-btn" onClick={handleRestart}>Chơi lại</button>
-          <button className="caro-restart-btn" style={{ marginLeft: 8 }} onClick={handleLeave}>Rời phòng</button>
+          <button className="caro-restart-btn" onClick={handleRestart}>
+            Chơi lại
+          </button>
+          <button
+            className="caro-restart-btn"
+            style={{ marginLeft: 8 }}
+            onClick={handleLeave}
+          >
+            Rời phòng
+          </button>
         </>
       )}
       <div className="caro-guide">Hàng 3 ô liên tiếp để chiến thắng!</div>
@@ -271,8 +299,19 @@ export default function App() {
     <div className="caro-app">
       <h1 className="caro-title">Cờ Caro 3x3</h1>
       <div style={{ marginBottom: 24 }}>
-        <button className="caro-restart-btn" onClick={() => setMode('offline')}>Chơi với máy</button>
-        <button className="caro-restart-btn" style={{ marginLeft: 12 }} onClick={() => setMode('online')}>Chơi Online</button>
+        <button
+          className="caro-restart-btn"
+          onClick={() => setMode('offline')}
+        >
+          Chơi với máy
+        </button>
+        <button
+          className="caro-restart-btn"
+          style={{ marginLeft: 12 }}
+          onClick={() => setMode('online')}
+        >
+          Chơi Online
+        </button>
       </div>
       {mode === 'offline' ? <Board /> : <OnlineCaro />}
     </div>

@@ -31,14 +31,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
             try:
                 parsed = json.loads(data)
 
-                # Nếu là reset
                 if parsed.get("reset") is True:
                     first_turn = random.choice([True, False])
                     for ws in rooms[room_id]:
                         await ws.send_text(json.dumps({
                             "reset": True,
-                            "firstTurn": first_turn
-        }))
+                            "firstTurn": first_turn  # <-- camelCase
+                        }))
 
                 # Nếu là lượt chơi
                 elif "squares" in parsed and "turn" in parsed:
@@ -57,6 +56,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
 
 @app.get("/create-room")
 def create_room():
+
     room_id = str(uuid.uuid4())[:8]
     return {"room_id": room_id}
 
