@@ -178,12 +178,7 @@ function OnlineCaro() {
 
   function handleRestart() {
     if (ws) {
-      let firstTurn;
-      if (winner === 'X') firstTurn = false;
-      else if (winner === 'O') firstTurn = true;
-      else firstTurn = true;
-
-      ws.send(JSON.stringify({ reset: true, firstTurn }));
+      ws.send(JSON.stringify({ reset: true }));
       setSquares(Array(9).fill(null));
       setWinner(null);
     }

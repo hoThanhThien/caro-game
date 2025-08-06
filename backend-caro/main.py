@@ -4,6 +4,7 @@ import uuid
 import json
 from pydantic import BaseModel
 from auto import find_best_move
+import random
 
 
 app = FastAPI()
@@ -32,11 +33,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
 
                 # Nếu là reset
                 if parsed.get("reset") is True:
+                    first_turn = random.choice([True, False])
                     for ws in rooms[room_id]:
                         await ws.send_text(json.dumps({
                             "reset": True,
-                            "firstTurn": parsed.get("firstTurn", True)
-                        }))
+                            "firstTurn": first_turn
+        }))
 
                 # Nếu là lượt chơi
                 elif "squares" in parsed and "turn" in parsed:
