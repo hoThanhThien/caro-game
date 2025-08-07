@@ -294,26 +294,34 @@ function calculateWinner(squares) {
 }
 
 export default function App() {
-  const [mode, setMode] = useState('offline');
+  const [mode, setMode] = useState(null); // ban đầu chưa chọn chế độ
+  const [hasStarted, setHasStarted] = useState(false); // kiểm soát hiển thị bảng
+
+  function handleStart(selectedMode) {
+    setMode(selectedMode);
+    setHasStarted(true);
+  }
+
   return (
     <div className="caro-app">
       <h1 className="caro-title">Cờ Caro 3x3</h1>
-      <div style={{ marginBottom: 24 }}>
-        <button
-          className="caro-restart-btn"
-          onClick={() => setMode('offline')}
-        >
-          Chơi với máy
-        </button>
-        <button
-          className="caro-restart-btn"
-          style={{ marginLeft: 12 }}
-          onClick={() => setMode('online')}
-        >
-          Chơi Online
-        </button>
-      </div>
-      {mode === 'offline' ? <Board /> : <OnlineCaro />}
+
+      {!hasStarted ? (
+        <div style={{ marginBottom: 24 }}>
+          <button className="caro-restart-btn" onClick={() => handleStart('offline')}>
+            Chơi với máy
+          </button>
+          <button
+            className="caro-restart-btn"
+            style={{ marginLeft: 12 }}
+            onClick={() => handleStart('online')}
+          >
+            Chơi Online
+          </button>
+        </div>
+      ) : (
+        mode === 'offline' ? <Board /> : <OnlineCaro />
+      )}
     </div>
   );
 }
