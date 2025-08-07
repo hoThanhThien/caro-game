@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 
+// --- Square Component ---
 function Square({ value, onClick }) {
   return (
     <button
@@ -15,11 +16,12 @@ function Square({ value, onClick }) {
   );
 }
 
-function Board() {
+// --- Offline Board Component ---
+function Board({ onBack }) {
   const [firstTurn] = useState(() => Math.random() < 0.5);
   const [squares, setSquares] = useState(Array(9).fill(null));
   const [isXTurn, setIsXTurn] = useState(firstTurn);
-  const [isAITurn, setIsAITurn] = useState(!firstTurn); // AI là O
+  const [isAITurn, setIsAITurn] = useState(!firstTurn);
   const winner = calculateWinner(squares);
   const isDraw = !winner && squares.every(s => s !== null);
 
@@ -99,13 +101,18 @@ function Board() {
         {squares.map((_, i) => renderSquare(i))}
       </div>
 
-      <button className="caro-restart-btn" onClick={handleRestart}>Chơi lại</button>
+      <div style={{ marginTop: 12 }}>
+        <button className="caro-restart-btn" onClick={handleRestart}>Chơi lại</button>
+        <button className="caro-restart-btn" style={{ marginLeft: 8 }} onClick={onBack}>⬅️ Quay lại</button>
+      </div>
+
       <div className="caro-guide">Hàng 3 ô liên tiếp để chiến thắng!</div>
     </div>
   );
 }
 
-function OnlineCaro() {
+// --- OnlineCaro Component ---
+function OnlineCaro({ onBack }) {
   const [roomId, setRoomId] = useState('');
   const [myRoom, setMyRoom] = useState('');
   const [ws, setWs] = useState(null);
@@ -132,7 +139,6 @@ function OnlineCaro() {
       setWs(socket);
       setIsX(playerX);
       setSquares(Array(9).fill(null));
-      // Nếu là creator, phát luôn lệnh reset để chọn firstTurn
       if (playerX) {
         const firstTurn = Math.random() < 0.5;
         socket.send(JSON.stringify({ reset: true, firstTurn }));
@@ -141,19 +147,14 @@ function OnlineCaro() {
 
     socket.onmessage = (event) => {
       let data;
-      try { data = JSON.parse(event.data); }
-      catch { return; }
+      try { data = JSON.parse(event.data); } catch { return; }
 
       if (data.reset) {
         setSquares(Array(9).fill(null));
         setMyTurn(playerX === data.firstTurn);
-      }
-      else if (Array.isArray(data.squares) && typeof data.turn === 'string') {
+      } else if (Array.isArray(data.squares) && typeof data.turn === 'string') {
         setSquares(data.squares);
-        setMyTurn(
-          (playerX && data.turn === 'X') ||
-          (!playerX && data.turn === 'O')
-        );
+        setMyTurn((playerX && data.turn === 'X') || (!playerX && data.turn === 'O'));
       }
     };
 
@@ -162,6 +163,7 @@ function OnlineCaro() {
       setMyRoom('');
       setWs(null);
       setSquares(Array(9).fill(null));
+      onBack();
     };
   }
 
@@ -187,6 +189,7 @@ function OnlineCaro() {
     if (ws) ws.close();
     setMyRoom('');
     setSquares(Array(9).fill(null));
+    onBack();
   }
 
   return (
@@ -208,73 +211,61 @@ function OnlineCaro() {
               Vào phòng
             </button>
           </div>
+          <button className="caro-restart-btn" style={{ marginTop: 12 }} onClick={onBack}>⬅️ Quay lại</button>
         </div>
       ) : (
         <>
           <div style={{ marginBottom: 10 }}>
-            Phòng: <b>{myRoom}</b>
-          </div>
-          <div style={{ marginBottom: 10 }}>
-            Bạn là:{' '}
-            <b style={{ color: isX ? '#e53935' : '#222' }}>
-              {isX ? '❌ X' : '⭕ O'}
-            </b>
-          </div>
-          <div style={{ marginBottom: 10 }}>
-            Lượt: <b>{myTurn ? 'Bạn' : 'Đối thủ'}</b>
-          </div>
+  <b style={{ color: '#000', fontWeight: 'bold' }}> Phòng:{myRoom}</b>
+</div>
+<div style={{ marginBottom: 10 }}>
+  <b style={{ color: isX ? '#e53935' : '#222', fontWeight: 'bold' }}>
+    <b style={{ color: '#000', fontWeight: 'bold' }}> Bạn là:</b>{isX ? '❌ X' : '⭕ O'}
+  </b>
+</div>
+<div style={{ marginBottom: 10 }}>
+   <b style={{ color: '#000', fontWeight: 'bold' }}>Lượt:{myTurn ? 'Bạn' : 'Đối thủ'}</b>
+</div>
+
+
           <h2 className="caro-status">
             {isDraw ? (
               <>🤝 Hòa rồi!</>
             ) : winner ? (
-              <>
-                🎉 Người thắng:{' '}
-                {winner === 'X' ? (
-                  <span style={{ color: '#e53935', fontWeight: 'bold' }}>
-                    ❌ X
-                  </span>
-                ) : (
-                  <span style={{ color: '#222', fontWeight: 'bold' }}>
-                    ⭕ O
-                  </span>
-                )}
-                !
-              </>
-            ) : (
-              <>Đang chơi...</>
-            )}
+              <>🎉 Người thắng: {winner === 'X' ? (
+                <span style={{ color: '#e53935', fontWeight: 'bold' }}>❌ X</span>
+              ) : (
+                <span style={{ color: '#222', fontWeight: 'bold' }}>⭕ O</span>
+              )}!</>
+            ) : <>Đang chơi...</>}
           </h2>
+
           <div className="caro-board">
             {squares.map((v, i) => (
               <button
                 key={i}
                 className="caro-square"
-                style={{
-                  color: v === 'X' ? '#e53935' : v === 'O' ? '#222' : undefined
-                }}
+                style={{ color: v === 'X' ? '#e53935' : v === 'O' ? '#222' : undefined }}
                 onClick={() => handleClick(i)}
               >
                 {v}
               </button>
             ))}
           </div>
-          <button className="caro-restart-btn" onClick={handleRestart}>
-            Chơi lại
-          </button>
-          <button
-            className="caro-restart-btn"
-            style={{ marginLeft: 8 }}
-            onClick={handleLeave}
-          >
-            Rời phòng
-          </button>
+
+          <div style={{ marginTop: 12 }}>
+            <button className="caro-restart-btn" onClick={handleRestart}>Chơi lại</button>
+            <button className="caro-restart-btn" style={{ marginLeft: 8 }} onClick={handleLeave}>⬅️ Rời phòng</button>
+          </div>
         </>
       )}
+
       <div className="caro-guide">Hàng 3 ô liên tiếp để chiến thắng!</div>
     </div>
   );
 }
 
+// --- Utility function ---
 function calculateWinner(squares) {
   const lines = [
     [0, 1, 2], [3, 4, 5], [6, 7, 8],
@@ -282,45 +273,30 @@ function calculateWinner(squares) {
     [0, 4, 8], [2, 4, 6],
   ];
   for (let [a, b, c] of lines) {
-    if (
-      squares[a] &&
-      squares[a] === squares[b] &&
-      squares[a] === squares[c]
-    ) {
+    if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
       return squares[a];
     }
   }
   return null;
 }
 
+// --- App Component ---
 export default function App() {
-  const [mode, setMode] = useState(null); // ban đầu chưa chọn chế độ
-  const [hasStarted, setHasStarted] = useState(false); // kiểm soát hiển thị bảng
-
-  function handleStart(selectedMode) {
-    setMode(selectedMode);
-    setHasStarted(true);
-  }
+  const [mode, setMode] = useState(null); // null | 'offline' | 'online'
 
   return (
     <div className="caro-app">
       <h1 className="caro-title">Cờ Caro 3x3</h1>
 
-      {!hasStarted ? (
+      {!mode ? (
         <div style={{ marginBottom: 24 }}>
-          <button className="caro-restart-btn" onClick={() => handleStart('offline')}>
-            Chơi với máy
-          </button>
-          <button
-            className="caro-restart-btn"
-            style={{ marginLeft: 12 }}
-            onClick={() => handleStart('online')}
-          >
-            Chơi Online
-          </button>
+          <button className="caro-restart-btn" onClick={() => setMode('offline')}>Chơi với máy</button>
+          <button className="caro-restart-btn" style={{ marginLeft: 12 }} onClick={() => setMode('online')}>Chơi Online</button>
         </div>
+      ) : mode === 'offline' ? (
+        <Board onBack={() => setMode(null)} />
       ) : (
-        mode === 'offline' ? <Board /> : <OnlineCaro />
+        <OnlineCaro onBack={() => setMode(null)} />
       )}
     </div>
   );
