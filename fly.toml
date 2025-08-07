@@ -1,15 +1,15 @@
-# fly.toml app configuration file generated for caro-game-v9mgca on 2025-08-06T22:47:59Z
+# fly.toml app configuration file generated for caro-game on 2025-08-07T05:58:37Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'caro-game-v9mgca'
+app = 'caro-game'
 primary_region = 'sin'
 
 [build]
 
 [http_service]
-  internal_port = 80
+  internal_port = 77
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
