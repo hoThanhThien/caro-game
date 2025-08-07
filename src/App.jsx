@@ -24,6 +24,8 @@ function Board({ onBack }) {
   const [isAITurn, setIsAITurn] = useState(!firstTurn);
   const winner = calculateWinner(squares);
   const isDraw = !winner && squares.every(s => s !== null);
+  const [opponentLeftHandled, setOpponentLeftHandled] = useState(false);
+
 
   useEffect(() => {
     async function fetchAIMove() {
@@ -156,6 +158,21 @@ function OnlineCaro({ onBack }) {
       let data;
       try { data = JSON.parse(event.data); } catch { return; }
 
+      if (data.opponent_left) {
+         // Hiện thông báo
+        alert("🎉 Đối thủ đã rời phòng. Bạn thắng!");
+
+  // Khi người dùng nhấn OK, mới thực hiện thoát phòng
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.close();
+        }
+        setMyRoom('');
+        setWs(null);
+        setSquares(Array(9).fill(null));
+         // Quay về giao diện tạo phòng
+        return;
+      }
+
       if (data.reset) {
         setSquares(Array(9).fill(null));
         setMyTurn(playerX === data.firstTurn);
@@ -166,11 +183,13 @@ function OnlineCaro({ onBack }) {
     };
 
     socket.onclose = () => {
-      alert('Đối thủ đã rời phòng!');
-      setMyRoom('');
-      setWs(null);
-      setSquares(Array(9).fill(null));
-      onBack();
+       if (!opponentLeftHandled) {
+          alert('Đối thủ đã rời phòng!');
+          setMyRoom('');
+          setWs(null);
+          setSquares(Array(9).fill(null));
+          onBack();
+        }
     };
   }
 
