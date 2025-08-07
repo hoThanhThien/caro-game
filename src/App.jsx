@@ -101,10 +101,17 @@ function Board({ onBack }) {
         {squares.map((_, i) => renderSquare(i))}
       </div>
 
-      <div style={{ marginTop: 12 }}>
-        <button className="caro-restart-btn" onClick={handleRestart}>Chơi lại</button>
-        <button className="caro-restart-btn" style={{ marginLeft: 8 }} onClick={onBack}>⬅️ Quay lại</button>
-      </div>
+      {(isDraw || winner) && (
+  <div style={{ marginTop: 12 }}>
+    <button className="caro-restart-btn" onClick={handleRestart}>Chơi lại</button>
+    <button className="caro-restart-btn" style={{ marginLeft: 8 }} onClick={onBack}>⬅️ Quay lại</button>
+  </div>
+)}
+{!(isDraw || winner) && (
+  <div style={{ marginTop: 12 }}>
+    <button className="caro-restart-btn" onClick={onBack}>⬅️ Quay lại</button>
+  </div>
+)}
 
       <div className="caro-guide">Hàng 3 ô liên tiếp để chiến thắng!</div>
     </div>
@@ -254,9 +261,12 @@ function OnlineCaro({ onBack }) {
           </div>
 
           <div style={{ marginTop: 12 }}>
-            <button className="caro-restart-btn" onClick={handleRestart}>Chơi lại</button>
-            <button className="caro-restart-btn" style={{ marginLeft: 8 }} onClick={handleLeave}>⬅️ Rời phòng</button>
-          </div>
+  {(isDraw || winner) && (
+    <button className="caro-restart-btn" onClick={handleRestart}>Chơi lại</button>
+  )}
+  <button className="caro-restart-btn" style={{ marginLeft: 8 }} onClick={handleLeave}>⬅️ Rời phòng</button>
+</div>
+
         </>
       )}
 
