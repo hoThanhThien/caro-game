@@ -1,5 +1,9 @@
-import { useState, useEffect } from 'react';
+// App.jsx
+
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
+
+
 
 // --- Square Component ---
 function Square({ value, onClick }) {
@@ -16,7 +20,7 @@ function Square({ value, onClick }) {
   );
 }
 
-// --- Offline Board Component ---
+// --- Offline Board Component (Không thay đổi) ---
 function Board({ onBack }) {
   const [firstTurn] = useState(() => Math.random() < 0.5);
   const [squares, setSquares] = useState(Array(9).fill(null));
@@ -25,6 +29,9 @@ function Board({ onBack }) {
   const winner = calculateWinner(squares);
   const isDraw = !winner && squares.every(s => s !== null);
   const [opponentLeftHandled, setOpponentLeftHandled] = useState(false);
+  
+
+
 
 
   useEffect(() => {
@@ -126,88 +133,156 @@ function OnlineCaro({ onBack }) {
   const [myRoom, setMyRoom] = useState('');
   const [ws, setWs] = useState(null);
   const [squares, setSquares] = useState(Array(9).fill(null));
-  const [isX, setIsX] = useState(true);
+  // isX bị loại bỏ, vì vai trò X/O được quyết định bởi server
   const [myTurn, setMyTurn] = useState(false);
-
+  const [myRole, setMyRole] = useState(null);
+  // <<< SỬA ĐỔI: Xóa myRoleRef vì chúng ta sẽ dùng biến cục bộ để thay thế
+  
   const winner = calculateWinner(squares);
   const isDraw = !winner && squares.every(s => s !== null);
+  const [timeLeft, setTimeLeft] = useState(10);
+  const timerRef = useRef(null);
+
+  // <<< SỬA ĐỔI: Xóa useEffect cho myRoleRef
+
+  useEffect(() => {
+    if (!myTurn || winner || isDraw) {
+      clearInterval(timerRef.current);
+      return;
+    }
+  
+    setTimeLeft(10);
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          alert("⏱️ Hết thời gian! Bạn đã thua.");
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.close();
+          }
+          setMyRoom('');
+          setSquares(Array(9).fill(null));
+          setWs(null);
+          onBack(); 
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  
+    return () => clearInterval(timerRef.current);
+  }, [myTurn, winner, isDraw, ws, onBack]);
 
   async function createRoom() {
-    const res = await fetch('http://localhost:8000/create-room');
-    const data = await res.json();
-    setRoomId(data.room_id);
-    joinRoom(data.room_id, true);
+    try {
+        const res = await fetch('http://localhost:8000/create-room');
+        const data = await res.json();
+        setRoomId(data.room_id);
+        joinRoom(data.room_id); // Không cần isCreator nữa
+    } catch(error) {
+        console.error("Failed to create room:", error);
+        alert("Không thể tạo phòng. Vui lòng kiểm tra lại server.");
+    }
   }
 
-  function joinRoom(id, isCreator = false) {
-    const playerX = isCreator;
+  function joinRoom(id) {
+    if (!id) {
+        alert("Vui lòng nhập Room ID.");
+        return;
+    }
     const socket = new WebSocket(`ws://localhost:8000/ws/${id}`);
+
+    // <<< SỬA ĐỔI: Khai báo một biến cục bộ để lưu vai trò một cách đáng tin cậy
+    let localRole = null;
 
     socket.onopen = () => {
       setMyRoom(id);
       setWs(socket);
-      setIsX(playerX);
       setSquares(Array(9).fill(null));
-      if (playerX) {
-        const firstTurn = Math.random() < 0.5;
-        socket.send(JSON.stringify({ reset: true, firstTurn }));
-      }
+      // --- REMOVED: Không gửi reset từ client nữa ---
     };
 
     socket.onmessage = (event) => {
       let data;
-      try { data = JSON.parse(event.data); } catch { return; }
+      try {
+        data = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+
+      if (data.error) {
+        alert(`Lỗi: ${data.error}`);
+        setMyRoom('');
+        setWs(null);
+        return;
+      }
+      
+      // Xử lý tin nhắn gán vai trò
+      if (data.role === 'X' || data.role === 'O') {
+        setMyRole(data.role);
+        localRole = data.role; // <<< SỬA ĐỔI: Cập nhật vai trò vào biến cục bộ
+        return; // Kết thúc xử lý cho tin nhắn này
+      }
 
       if (data.opponent_left) {
-         // Hiện thông báo
         alert("🎉 Đối thủ đã rời phòng. Bạn thắng!");
-
-  // Khi người dùng nhấn OK, mới thực hiện thoát phòng
         if (socket.readyState === WebSocket.OPEN) {
           socket.close();
         }
         setMyRoom('');
         setWs(null);
         setSquares(Array(9).fill(null));
-         // Quay về giao diện tạo phòng
+        onBack(); // Quay về màn hình chính
         return;
       }
 
+      // Xử lý tin nhắn bắt đầu/chơi lại game
       if (data.reset) {
         setSquares(Array(9).fill(null));
-        setMyTurn(playerX === data.firstTurn);
-      } else if (Array.isArray(data.squares) && typeof data.turn === 'string') {
+        // <<< SỬA ĐỔI: Dùng biến cục bộ `localRole` thay vì `myRoleRef.current`
+        const isMyTurn = localRole === data.firstTurn;
+        setMyTurn(isMyTurn);
+      } 
+      // Xử lý tin nhắn nước đi
+      else if (Array.isArray(data.squares) && typeof data.turn === 'string') {
         setSquares(data.squares);
-        setMyTurn((playerX && data.turn === 'X') || (!playerX && data.turn === 'O'));
+        // <<< SỬA ĐỔI: Dùng biến cục bộ `localRole` cho nhất quán
+        const isMyTurn = localRole === data.turn;
+        setMyTurn(isMyTurn);
       }
     };
 
     socket.onclose = () => {
-       if (!opponentLeftHandled) {
-          alert('Đối thủ đã rời phòng!');
-          setMyRoom('');
-          setWs(null);
-          setSquares(Array(9).fill(null));
-          onBack();
-        }
+      setMyRoom('');
+      setWs(null);
+      setSquares(Array(9).fill(null));
+      // Không tự động back(), chỉ khi đối thủ rời hoặc tự mình rời
     };
+
+    socket.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        alert("Không thể kết nối tới phòng. Vui lòng kiểm tra Room ID và server.");
+        setMyRoom('');
+        setWs(null);
+    }
   }
 
   function handleClick(i) {
-    if (!myTurn || squares[i] || winner) return;
+    // <<< SỬA ĐỔI: Dùng state `myRole` ở đây là an toàn vì đây là hành động của người dùng, state đã ổn định
+    if (!myTurn || squares[i] || winner || isDraw) return;
+    
     const newSquares = [...squares];
-    newSquares[i] = isX ? 'X' : 'O';
+    newSquares[i] = myRole; // Dùng role của mình để đánh cờ
     setSquares(newSquares);
     setMyTurn(false);
-    const nextTurn = isX ? 'O' : 'X';
+    
+    const nextTurn = myRole === 'X' ? 'O' : 'X';
     ws.send(JSON.stringify({ squares: newSquares, turn: nextTurn }));
   }
 
   function handleRestart() {
     if (ws) {
-      const firstTurn = Math.random() < 0.5;
-      ws.send(JSON.stringify({ reset: true, firstTurn }));
-      setSquares(Array(9).fill(null));
+      ws.send(JSON.stringify({ reset: true }));
     }
   }
 
@@ -232,7 +307,7 @@ function OnlineCaro({ onBack }) {
             <button
               className="caro-restart-btn"
               style={{ marginLeft: 8 }}
-              onClick={() => joinRoom(roomId, false)}
+              onClick={() => joinRoom(roomId)}
             >
               Vào phòng
             </button>
@@ -242,17 +317,17 @@ function OnlineCaro({ onBack }) {
       ) : (
         <>
           <div style={{ marginBottom: 10 }}>
-  <b style={{ color: '#000', fontWeight: 'bold' }}> Phòng:{myRoom}</b>
-</div>
-<div style={{ marginBottom: 10 }}>
-  <b style={{ color: isX ? '#e53935' : '#222', fontWeight: 'bold' }}>
-    <b style={{ color: '#000', fontWeight: 'bold' }}> Bạn là:</b>{isX ? '❌ X' : '⭕ O'}
-  </b>
-</div>
-<div style={{ marginBottom: 10 }}>
-   <b style={{ color: '#000', fontWeight: 'bold' }}>Lượt:{myTurn ? 'Bạn' : 'Đối thủ'}</b>
-</div>
-
+            <b style={{ color: '#000', fontWeight: 'bold' }}> Phòng: {myRoom}</b>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <b style={{ color: '#000', fontWeight: 'bold' }}> Bạn là: </b>
+            <b style={{ color: myRole === 'X' ? '#e53935' : '#222' }}>
+              {myRole === 'X' ? '❌ X' : '⭕ O'}
+            </b>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+             <b style={{ color: '#000', fontWeight: 'bold' }}>Lượt: {myTurn ? 'Bạn' : 'Đối thủ'}</b>
+          </div>
 
           <h2 className="caro-status">
             {isDraw ? (
@@ -263,16 +338,22 @@ function OnlineCaro({ onBack }) {
               ) : (
                 <span style={{ color: '#222', fontWeight: 'bold' }}>⭕ O</span>
               )}!</>
-            ) : <>Đang chơi...</>}
+            ) : (ws && myRole) ? 'Đang chơi...' : 'Đang chờ đối thủ...'}
+            {myTurn && !winner && !isDraw && (
+              <div style={{ fontSize: '1.1rem', color: '#d32f2f', margin: '10px 0' }}>
+                ⏳ Thời gian còn lại: <b>{timeLeft}s</b>
+              </div>
+            )}
           </h2>
 
           <div className="caro-board">
             {squares.map((v, i) => (
               <button
                 key={i}
-                className="caro-square"
+                className={`caro-square ${myTurn && !v ? 'my-turn' : ''}`}
                 style={{ color: v === 'X' ? '#e53935' : v === 'O' ? '#222' : undefined }}
                 onClick={() => handleClick(i)}
+                disabled={!myTurn || !!v}
               >
                 {v}
               </button>
@@ -280,12 +361,11 @@ function OnlineCaro({ onBack }) {
           </div>
 
           <div style={{ marginTop: 12 }}>
-  {(isDraw || winner) && (
-    <button className="caro-restart-btn" onClick={handleRestart}>Chơi lại</button>
-  )}
-  <button className="caro-restart-btn" style={{ marginLeft: 8 }} onClick={handleLeave}>⬅️ Rời phòng</button>
-</div>
-
+            {(isDraw || winner) && (
+              <button className="caro-restart-btn" onClick={handleRestart}>Chơi lại</button>
+            )}
+            <button className="caro-restart-btn" style={{ marginLeft: 8 }} onClick={handleLeave}>⬅️ Rời phòng</button>
+          </div>
         </>
       )}
 
@@ -294,7 +374,7 @@ function OnlineCaro({ onBack }) {
   );
 }
 
-// --- Utility function ---
+// --- Utility function (Không thay đổi) ---
 function calculateWinner(squares) {
   const lines = [
     [0, 1, 2], [3, 4, 5], [6, 7, 8],
@@ -309,7 +389,7 @@ function calculateWinner(squares) {
   return null;
 }
 
-// --- App Component ---
+// --- App Component (Không thay đổi) ---
 export default function App() {
   const [mode, setMode] = useState(null); // null | 'offline' | 'online'
 
