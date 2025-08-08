@@ -129,169 +129,132 @@ function Board({ onBack }) {
 
 // --- OnlineCaro Component ---
 function OnlineCaro({ onBack }) {
+  const TURN_TIME = 20; // chỉnh thời gian mỗi lượt ở đây
+
   const [roomId, setRoomId] = useState('');
   const [myRoom, setMyRoom] = useState('');
   const [ws, setWs] = useState(null);
   const [squares, setSquares] = useState(Array(9).fill(null));
-  // isX bị loại bỏ, vì vai trò X/O được quyết định bởi server
   const [myTurn, setMyTurn] = useState(false);
   const [myRole, setMyRole] = useState(null);
-  // <<< SỬA ĐỔI: Xóa myRoleRef vì chúng ta sẽ dùng biến cục bộ để thay thế
-  
+
   const winner = calculateWinner(squares);
   const isDraw = !winner && squares.every(s => s !== null);
-  const [timeLeft, setTimeLeft] = useState(10);
+
+  const [timeLeft, setTimeLeft] = useState(TURN_TIME);
   const timerRef = useRef(null);
 
-  // <<< SỬA ĐỔI: Xóa useEffect cho myRoleRef
+  // Chat + Emote
+  const [messages, setMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [flyEmotes, setFlyEmotes] = useState([]);
+  const EMOJIS = ["😀","😂","😮","😢","😡","❤️","👍","👏","🎉"];
+  const msgsRef = useRef(null);
+
+  useEffect(() => {
+    if (!msgsRef.current) return;
+    msgsRef.current.scrollTop = msgsRef.current.scrollHeight;
+  }, [messages]);
 
   useEffect(() => {
     if (!myTurn || winner || isDraw) {
       clearInterval(timerRef.current);
       return;
     }
-  
-    setTimeLeft(10);
+    setTimeLeft(TURN_TIME);
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timerRef.current);
           alert("⏱️ Hết thời gian! Bạn đã thua.");
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.close();
-          }
+          if (ws && ws.readyState === WebSocket.OPEN) ws.close();
           setMyRoom('');
           setSquares(Array(9).fill(null));
           setWs(null);
-          onBack(); 
+          onBack();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-  
     return () => clearInterval(timerRef.current);
   }, [myTurn, winner, isDraw, ws, onBack]);
 
   async function createRoom() {
     try {
-        const res = await fetch('http://localhost:8000/create-room');
-        const data = await res.json();
-        setRoomId(data.room_id);
-        joinRoom(data.room_id); // Không cần isCreator nữa
-    } catch(error) {
-        console.error("Failed to create room:", error);
-        alert("Không thể tạo phòng. Vui lòng kiểm tra lại server.");
+      const res = await fetch('http://localhost:8000/create-room');
+      const data = await res.json();
+      setRoomId(data.room_id);
+      joinRoom(data.room_id);
+    } catch (e) {
+      console.error(e);
+      alert("Không thể tạo phòng. Kiểm tra server.");
     }
   }
 
   function joinRoom(id) {
-    if (!id) {
-        alert("Vui lòng nhập Room ID.");
-        return;
-    }
+    if (!id) { alert("Vui lòng nhập Room ID."); return; }
     const socket = new WebSocket(`ws://localhost:8000/ws/${id}`);
-
-    // <<< SỬA ĐỔI: Khai báo một biến cục bộ để lưu vai trò một cách đáng tin cậy
     let localRole = null;
 
     socket.onopen = () => {
       setMyRoom(id);
       setWs(socket);
       setSquares(Array(9).fill(null));
-      // --- REMOVED: Không gửi reset từ client nữa ---
     };
 
-    socket.onmessage = (event) => {
-      let data;
-      try {
-        data = JSON.parse(event.data);
-      } catch {
-        return;
-      }
+    socket.onmessage = (ev) => {
+      let data; try { data = JSON.parse(ev.data); } catch { return; }
 
-      if (data.error) {
-        alert(`Lỗi: ${data.error}`);
-        setMyRoom('');
-        setWs(null);
-        return;
-      }
-      
-      // Xử lý tin nhắn gán vai trò
-      if (data.role === 'X' || data.role === 'O') {
-        setMyRole(data.role);
-        localRole = data.role; // <<< SỬA ĐỔI: Cập nhật vai trò vào biến cục bộ
-        return; // Kết thúc xử lý cho tin nhắn này
-      }
+      if (data.error) { alert(`Lỗi: ${data.error}`); setMyRoom(''); setWs(null); return; }
+
+      if (data.role === 'X' || data.role === 'O') { setMyRole(data.role); localRole = data.role; return; }
 
       if (data.opponent_left) {
         alert("🎉 Đối thủ đã rời phòng. Bạn thắng!");
-        if (socket.readyState === WebSocket.OPEN) {
-          socket.close();
-        }
-        setMyRoom('');
-        setWs(null);
-        setSquares(Array(9).fill(null));
-        onBack(); // Quay về màn hình chính
-        return;
+        if (socket.readyState === WebSocket.OPEN) socket.close();
+        setMyRoom(''); setWs(null); setSquares(Array(9).fill(null)); onBack(); return;
       }
 
-      // Xử lý tin nhắn bắt đầu/chơi lại game
       if (data.reset) {
         setSquares(Array(9).fill(null));
-        // <<< SỬA ĐỔI: Dùng biến cục bộ `localRole` thay vì `myRoleRef.current`
-        const isMyTurn = localRole === data.firstTurn;
-        setMyTurn(isMyTurn);
-      } 
-      // Xử lý tin nhắn nước đi
-      else if (Array.isArray(data.squares) && typeof data.turn === 'string') {
+        setMyTurn(localRole === data.firstTurn);
+      } else if (Array.isArray(data.squares) && typeof data.turn === 'string') {
         setSquares(data.squares);
-        // <<< SỬA ĐỔI: Dùng biến cục bộ `localRole` cho nhất quán
-        const isMyTurn = localRole === data.turn;
-        setMyTurn(isMyTurn);
+        setMyTurn(localRole === data.turn);
+      } else if (data.type === "chat" && typeof data.text === "string") {
+        setMessages(prev => [...prev, { sender: data.sender, text: data.text, ts: Date.now() }]);
+      } else if (data.type === "emote" && data.emoji) {
+        setMessages(prev => [...prev, { sender: data.sender, text: data.emoji, ts: Date.now() }]);
+        const id = Math.random().toString(36).slice(2);
+        setFlyEmotes(prev => [...prev, { id, emoji: data.emoji }]);
+        setTimeout(() => setFlyEmotes(prev => prev.filter(e => e.id !== id)), 1200);
       }
     };
 
-    socket.onclose = () => {
-      setMyRoom('');
-      setWs(null);
-      setSquares(Array(9).fill(null));
-      // Không tự động back(), chỉ khi đối thủ rời hoặc tự mình rời
-    };
-
-    socket.onerror = (error) => {
-        console.error("WebSocket error:", error);
-        alert("Không thể kết nối tới phòng. Vui lòng kiểm tra Room ID và server.");
-        setMyRoom('');
-        setWs(null);
-    }
+    socket.onclose = () => { setMyRoom(''); setWs(null); setSquares(Array(9).fill(null)); };
+    socket.onerror = () => { alert("Không thể kết nối phòng. Kiểm tra Room ID/server."); setMyRoom(''); setWs(null); };
   }
 
   function handleClick(i) {
-    // <<< SỬA ĐỔI: Dùng state `myRole` ở đây là an toàn vì đây là hành động của người dùng, state đã ổn định
     if (!myTurn || squares[i] || winner || isDraw) return;
-    
     const newSquares = [...squares];
-    newSquares[i] = myRole; // Dùng role của mình để đánh cờ
+    newSquares[i] = myRole;
     setSquares(newSquares);
     setMyTurn(false);
-    
     const nextTurn = myRole === 'X' ? 'O' : 'X';
     ws.send(JSON.stringify({ squares: newSquares, turn: nextTurn }));
   }
 
-  function handleRestart() {
-    if (ws) {
-      ws.send(JSON.stringify({ reset: true }));
-    }
-  }
+  function handleRestart() { if (ws) ws.send(JSON.stringify({ reset: true })); }
+  function handleLeave()   { if (ws) ws.close(); setMyRoom(''); setSquares(Array(9).fill(null)); onBack(); }
 
-  function handleLeave() {
-    if (ws) ws.close();
-    setMyRoom('');
-    setSquares(Array(9).fill(null));
-    onBack();
+  function sendChat() {
+    if (!ws || !chatInput.trim()) return;
+    ws.send(JSON.stringify({ type: "chat", text: chatInput.trim() }));
+    setChatInput("");
   }
+  function sendEmote(emoji) { if (ws) ws.send(JSON.stringify({ type: "emote", emoji })); }
 
   return (
     <div className="caro-board-container">
@@ -299,72 +262,113 @@ function OnlineCaro({ onBack }) {
         <div style={{ marginBottom: 24 }}>
           <button className="caro-restart-btn" onClick={createRoom}>Tạo phòng mới</button>
           <div style={{ marginTop: 12 }}>
-            <input
-              placeholder="Nhập Room ID"
-              value={roomId}
-              onChange={e => setRoomId(e.target.value)}
-            />
-            <button
-              className="caro-restart-btn"
-              style={{ marginLeft: 8 }}
-              onClick={() => joinRoom(roomId)}
-            >
-              Vào phòng
-            </button>
+            <input placeholder="Nhập Room ID" value={roomId} onChange={e => setRoomId(e.target.value)} />
+            <button className="caro-restart-btn" style={{ marginLeft: 8 }} onClick={() => joinRoom(roomId)}>Vào phòng</button>
           </div>
           <button className="caro-restart-btn" style={{ marginTop: 12 }} onClick={onBack}>⬅️ Quay lại</button>
         </div>
       ) : (
         <>
-          <div style={{ marginBottom: 10 }}>
-            <b style={{ color: '#000', fontWeight: 'bold' }}> Phòng: {myRoom}</b>
+          {/* TOPBAR: Phòng + Rời phòng (góc phải) */}
+          <div className="topbar">
+            <div className="room-info"><b>Phòng: {myRoom}</b></div>
+            <button className="btn-primary btn-small" onClick={handleLeave}>⬅️ Rời phòng</button>
+
           </div>
+
           <div style={{ marginBottom: 10 }}>
             <b style={{ color: '#000', fontWeight: 'bold' }}> Bạn là: </b>
-            <b style={{ color: myRole === 'X' ? '#e53935' : '#222' }}>
-              {myRole === 'X' ? '❌ X' : '⭕ O'}
-            </b>
+            <b style={{ color: myRole === 'X' ? '#e53935' : '#222' }}>{myRole === 'X' ? '❌ ' : '⭕ '}</b>
           </div>
           <div style={{ marginBottom: 10 }}>
-             <b style={{ color: '#000', fontWeight: 'bold' }}>Lượt: {myTurn ? 'Bạn' : 'Đối thủ'}</b>
+            <b style={{ color: '#000', fontWeight: 'bold' }}>Lượt: {myTurn ? 'Bạn' : 'Đối thủ'}</b>
           </div>
 
           <h2 className="caro-status">
             {isDraw ? (
               <>🤝 Hòa rồi!</>
             ) : winner ? (
-              <>🎉 Người thắng: {winner === 'X' ? (
-                <span style={{ color: '#e53935', fontWeight: 'bold' }}>❌ X</span>
-              ) : (
-                <span style={{ color: '#222', fontWeight: 'bold' }}>⭕ O</span>
-              )}!</>
+              <>🎉 Người thắng: {winner === 'X'
+                ? <span style={{ color: '#e53935', fontWeight: 'bold' }}>❌ </span>
+                : <span style={{ color: '#222', fontWeight: 'bold' }}>⭕ </span>}!</>
             ) : (ws && myRole) ? 'Đang chơi...' : 'Đang chờ đối thủ...'}
+
             {myTurn && !winner && !isDraw && (
-              <div style={{ fontSize: '1.1rem', color: '#d32f2f', margin: '10px 0' }}>
-                ⏳ Thời gian còn lại: <b>{timeLeft}s</b>
-              </div>
+              <span style={{ fontSize: '1.1rem', color: '#d32f2f', marginLeft: 8 }}>⏳ {timeLeft}s</span>
             )}
           </h2>
 
-          <div className="caro-board">
-            {squares.map((v, i) => (
-              <button
-                key={i}
-                className={`caro-square ${myTurn && !v ? 'my-turn' : ''}`}
-                style={{ color: v === 'X' ? '#e53935' : v === 'O' ? '#222' : undefined }}
-                onClick={() => handleClick(i)}
-                disabled={!myTurn || !!v}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
+          {!winner && !isDraw && (
+            <div className="turn-timer">
+              <div className="turn-timer__bar" style={{ width: `${(timeLeft / TURN_TIME) * 100}%` }} />
+            </div>
+          )}
 
-          <div style={{ marginTop: 12 }}>
-            {(isDraw || winner) && (
-              <button className="caro-restart-btn" onClick={handleRestart}>Chơi lại</button>
-            )}
-            <button className="caro-restart-btn" style={{ marginLeft: 8 }} onClick={handleLeave}>⬅️ Rời phòng</button>
+          <div className="caro-online-wrap">
+            {/* Cột trái: board + overlay */}
+            <div className="caro-board-wrap">
+              <div className="caro-board">
+                {squares.map((v, i) => (
+                  <button
+                    key={i}
+                    className={`caro-square ${myTurn && !v ? 'my-turn' : ''}`}
+                    style={{ color: v === 'X' ? '#e53935' : v === 'O' ? '#222' : undefined }}
+                    onClick={() => handleClick(i)}
+                    disabled={!myTurn || !!v}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+
+              {/* Emoji overlay */}
+              <div className="emote-overlay">
+                {flyEmotes.map(e => (<span key={e.id} className="emote-fly">{e.emoji}</span>))}
+              </div>
+
+              {/* Nút Chơi lại (nhóm dưới board, cách board thoáng bằng CSS .caro-actions) */}
+              <div className="caro-actions">
+                {(isDraw || winner) && (
+                  <button className="caro-restart-btn" onClick={handleRestart}>Chơi lại</button>
+                )}
+              </div>
+            </div>
+
+            {/* Cột phải: Chat */}
+            <div className="caro-chat">
+              <div className="caro-chat-header">🗨️ Trò chuyện</div>
+
+              <div className="caro-chat-messages" ref={msgsRef}>
+                {messages.map((m, idx) => (
+                  <div key={idx} className={`chat-msg ${m.sender === myRole ? 'me' : 'op'}`}>
+                    <b style={{ marginRight: 6 }}>{m.sender === 'X' ? '❌' : '⭕'}</b>
+                    <span>{m.text}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="caro-emoji-bar">
+                {EMOJIS.map(e => (
+                  <button key={e} className="emoji-btn" onClick={() => sendEmote(e)}>{e}</button>
+                ))}
+              </div>
+
+              <div className="caro-chat-input">
+                <input
+                  placeholder="Nhập tin nhắn..."
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => (e.key === 'Enter' ? sendChat() : null)}
+                />
+                <button 
+                  onClick={sendChat}
+                  disabled={!chatInput.trim()}
+                  className={`btn-primary btn-small ${!chatInput.trim() ? 'disabled' : ''}`}
+                >
+                  Gửi
+                </button>
+              </div>
+            </div>
           </div>
         </>
       )}
@@ -373,6 +377,8 @@ function OnlineCaro({ onBack }) {
     </div>
   );
 }
+
+
 
 // --- Utility function (Không thay đổi) ---
 function calculateWinner(squares) {

@@ -81,6 +81,20 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 for player in room["players"]:
                     if player["socket"] != websocket:
                          await player["socket"].send_text(broadcast_payload)
+            # main.py (bổ sung trong websocket_endpoint)
+            elif parsed.get("type") in ("chat", "emote"):
+            # Gói lại kèm role người gửi (X/O) để client hiển thị
+                msg = {
+                    "type": parsed["type"],
+                    "text": parsed.get("text"),
+                    "emoji": parsed.get("emoji"),
+                    "sender": role,  # 'X' hoặc 'O'
+                }
+                payload = json.dumps(msg)
+                for player in room["players"]:
+            # broadcast cho cả hai (kể cả người gửi, để đồng bộ UI)
+                    await player["socket"].send_text(payload)
+
 
     except (WebSocketDisconnect, json.JSONDecodeError):
         room["players"] = [p for p in room["players"] if p["socket"] != websocket]
