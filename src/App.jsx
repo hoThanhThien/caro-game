@@ -117,11 +117,7 @@ function Board({ onBack }) {
     <button className="caro-restart-btn" style={{ marginLeft: 8 }} onClick={onBack}>⬅️ Quay lại</button>
   </div>
 )}
-{!(isDraw || winner) && (
-  <div style={{ marginTop: 12 }}>
-    <button className="caro-restart-btn" onClick={onBack}>⬅️ Quay lại</button>
-  </div>
-)}
+
 
       <div className="caro-guide">Hàng 3 ô liên tiếp để chiến thắng!</div>
     </div>
