@@ -130,7 +130,7 @@ function Board({ onBack }) {
 
 // --- OnlineCaro Component ---
 function OnlineCaro({ onBack }) {
-  const TURN_TIME = 20; // chỉnh thời gian mỗi lượt ở đây
+  const TURN_TIME = 30; // chỉnh thời gian mỗi lượt ở đây
 
   const [roomId, setRoomId] = useState('');
   const [myRoom, setMyRoom] = useState('');
