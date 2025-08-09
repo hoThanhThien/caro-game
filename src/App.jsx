@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import './App.css';
+import { API_BASE_URL, WS_BASE_URL } from './config.js';
 
 
 
@@ -28,7 +29,7 @@ function Board({ onBack }) {
   const [isAITurn, setIsAITurn] = useState(!firstTurn);
   const winner = calculateWinner(squares);
   const isDraw = !winner && squares.every(s => s !== null);
-  const [opponentLeftHandled, setOpponentLeftHandled] = useState(false);
+
   
 
 
@@ -39,7 +40,7 @@ function Board({ onBack }) {
       if (!isAITurn || winner) return;
 
       try {
-        const response = await fetch("http://localhost:8000/auto-move", {
+        const response = await fetch(`${API_BASE_URL}/auto-move`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ squares, player: 'O' }),
@@ -182,7 +183,7 @@ function OnlineCaro({ onBack }) {
 
   async function createRoom() {
     try {
-      const res = await fetch('http://localhost:8000/create-room');
+      const res = await fetch(`${API_BASE_URL}/create-room`);
       const data = await res.json();
       setRoomId(data.room_id);
       joinRoom(data.room_id);
@@ -194,7 +195,7 @@ function OnlineCaro({ onBack }) {
 
   function joinRoom(id) {
     if (!id) { alert("Vui lòng nhập Room ID."); return; }
-    const socket = new WebSocket(`ws://localhost:8000/ws/${id}`);
+    const socket = new WebSocket(`${WS_BASE_URL}/ws/${id}`);
     let localRole = null;
 
     socket.onopen = () => {

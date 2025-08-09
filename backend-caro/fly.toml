@@ -1,15 +1,12 @@
-# fly.toml app configuration file generated for caro-game-v9mgca on 2025-08-06T22:47:59Z
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
+# fly.toml app configuration file for FastAPI backend
 
-app = 'caro-game-2025'
+app = 'caro-backend-2025'
 primary_region = 'sin'
 
 [build]
 
 [http_service]
-  internal_port = 80
+  internal_port = 8000
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
